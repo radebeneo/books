@@ -1,10 +1,11 @@
 import React from 'react'
+import Hero from "@/components/Hero";
 
 const Page = () => {
     return (
-        <div>
-
-        </div>
+        <main className="wrapper container">
+            <Hero />
+        </main>
     )
 }
 export default Page
