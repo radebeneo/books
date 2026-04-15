@@ -21,7 +21,7 @@ export const createBook = async (data: CreateBook) => {
 
         return {
             success: true,
-            data: serialzeData(book)
+            data: serializeData(book)
         }
     } catch (e) {
         console.error('Error creating book: ', e)
