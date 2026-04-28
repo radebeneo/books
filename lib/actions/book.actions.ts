@@ -1,7 +1,8 @@
-import {CreateBook} from '@/types'
+import {CreateBook, TextSegment} from '@/types'
 import {connectToDatabase} from "@/database/mongoose";
 import {generateSlug, serializeData} from "@/lib/utils";
 import Book from "@/database/models/book.model";
+import BookSegment from "@/database/models/book-segment.model";
 
 export const createBook = async (data: CreateBook) => {
     try{
@@ -30,4 +31,32 @@ export const createBook = async (data: CreateBook) => {
             error: e
         }
     }
+}
+
+export const saveBookSegments = async (bookId: string, clerkId: string, segments: TextSegment[]) => {
+    try {
+        await connectToDatabase()
+
+        console.log('Saving book segments ...');
+
+        const segmentsToInsert = segments.map(({text, segmentIndex, pageNumber, wordCount}) => ({
+            clerkId, bookId, content: text, segmentIndex, pageNumber, wordCount
+        }))
+
+        await BookSegment.insertMany(segmentsToInsert)
+        await Book.findByIdAndUpdate(bookId, { totalSegments: segments.length})
+        console.log('Book segments successfully saved.');
+
+        return {
+            success: true,
+            data: { segmentsCreated: segments.length }
+        }
+
+    } catch (e) {
+        console.error('Error saving book segments: ', e)
+        await BookSegment.deleteMany({ bookId })
+        await Book.findByIdAndDelete(bookId)
+        console.log('Book segments, and book deleted due to failure tosave segments')
+    }
+
 }
