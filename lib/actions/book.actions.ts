@@ -1,8 +1,32 @@
+'use server'
+
 import {CreateBook, TextSegment} from '@/types'
 import {connectToDatabase} from "@/database/mongoose";
 import {generateSlug, serializeData} from "@/lib/utils";
 import Book from "@/database/models/book.model";
 import BookSegment from "@/database/models/book-segment.model";
+
+export const checkBookExists = async (title: string) => {
+    try {
+        await connectToDatabase();
+
+        const slug = generateSlug(title);
+
+        const existingBook = await Book.findOne({slug}).lean();
+
+        if(existingBook) {
+            return {
+                exists: true, data: serializeData(existingBook)
+            }
+        }
+    } catch (e) {
+        console.error('Error checking book exists', e);
+        return {
+            exists: false, error: e
+        }
+    }
+
+}
 
 export const createBook = async (data: CreateBook) => {
     try{
