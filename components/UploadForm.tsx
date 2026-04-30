@@ -12,8 +12,11 @@ import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import LoadingOverlay from "@/components/LoadingOverlay"
-import { cn } from "@/lib/utils"
+import {cn, parsePDFFile} from "@/lib/utils"
 import { voiceOptions, voiceCategories, MAX_FILE_SIZE, ACCEPTED_PDF_TYPES, DEFAULT_VOICE } from "@/lib/constants"
+import {useAuth} from "@clerk/react"
+import { toast } from 'sonner'
+import {checkBookExists} from "@/lib/actions/book.actions";
 
 const formSchema = z.object({
   bookPdf: z
@@ -32,6 +35,7 @@ type FormValues = z.infer<typeof formSchema>
 
 const UploadForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const { userId } = useAuth()
   const router = useRouter()
 
   const form = useForm<FormValues>({
@@ -43,17 +47,42 @@ const UploadForm = () => {
     },
   })
 
-  const onSubmit = async (values: FormValues) => {
+  const onSubmit = async (data: FormValues) => {
+
+    if(!userId) {
+        return toast.error("Please login to upload books")
+    }
+
+
+
     setIsSubmitting(true)
     try {
-      // Simulate API call
-      console.log(values)
-      await new Promise((resolve) => setTimeout(resolve, 3000))
-      router.push("/")
+        const existsCheck = await checkBookExists(data.title)
+
+        if(existsCheck.exists && existsCheck.book){
+            toast.info("Book with the same title already exists.")
+            form.reset()
+            router.push(`/books/${existsCheck.book.slug}`)
+            return
+        }
+
+        const fileTitle = data.title.replace(/\s+/g, "-").toLowerCase()
+        const pdfFile = data.pdfFile[0]
+
+        const parsedPDF = await parsePDFFile(pdfFile)
+
+        if (parsedPDF.content.length === 0 ) {
+            toast.error("Failed to parse pdf. Please try again with different file.")
+            return
+        }
     } catch (error) {
       console.error(error)
+
+        toast.error("Failed to upload book. Please try again later.")
+
+
     } finally {
-      setIsSubmitting(false)
+        setIsSubmitting(false)
     }
   }
 
