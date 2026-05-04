@@ -13,22 +13,19 @@ import { Button } from "@/components/ui/button"
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import LoadingOverlay from "@/components/LoadingOverlay"
 import {cn, parsePDFFile} from "@/lib/utils"
-import { voiceOptions, voiceCategories, MAX_FILE_SIZE, ACCEPTED_PDF_TYPES, DEFAULT_VOICE } from "@/lib/constants"
+import { voiceOptions, voiceCategories } from "@/lib/constants"
+import { coverImageSchema, pdfFileSchema } from "@/lib/validators"
 import {useAuth} from "@clerk/react"
 import { toast } from 'sonner'
-import {checkBookExists} from "@/lib/actions/book.actions";
+import {checkBookExists, createBook} from "@/lib/actions/book.actions";
+import {upload} from "@vercel/blob/client";
 
 const formSchema = z.object({
-  bookPdf: z
-    .custom<File>((val) => val instanceof File, "Book PDF is required")
-    .refine((file) => file.size <= MAX_FILE_SIZE, "Max file size is 50MB")
-    .refine((file) => ACCEPTED_PDF_TYPES.includes(file.type), "Only PDF files are supported"),
-  coverImage: z
-    .custom<File | null>((val) => val === null || val instanceof File)
-    .optional(),
   title: z.string().min(1, "Title is required"),
   author: z.string().min(1, "Author name is required"),
-  voice: z.string().min(1, "Please choose a voice"),
+  persona: z.string().min(1, "Please choose a voice"),
+  pdfFile: pdfFileSchema,
+  coverImage: coverImageSchema,
 })
 
 type FormValues = z.infer<typeof formSchema>
@@ -43,7 +40,9 @@ const UploadForm = () => {
     defaultValues: {
       title: "",
       author: "",
-      voice: DEFAULT_VOICE,
+      persona: "",
+      pdfFile: undefined,
+      coverImage: undefined,
     },
   })
 
@@ -67,7 +66,7 @@ const UploadForm = () => {
         }
 
         const fileTitle = data.title.replace(/\s+/g, "-").toLowerCase()
-        const pdfFile = data.pdfFile[0]
+        const pdfFile = data.pdfFile
 
         const parsedPDF = await parsePDFFile(pdfFile)
 
@@ -75,6 +74,46 @@ const UploadForm = () => {
             toast.error("Failed to parse pdf. Please try again with different file.")
             return
         }
+
+        const uploadedPdfBlob = await upload(fileTitle, pdfFile, {
+            access: 'public',
+            handleUploadUrl: '/api/upload',
+            contentType: 'application/pdf'
+        })
+
+        let coverUrl: string
+
+        if(data.coverImage) {
+            const coverFile = data.coverImage
+            const uploadedCoverBlob = await upload(`${fileTitle}_cover.png`, coverFile, {
+                access: 'public',
+                handleUploadUrl: '/api/upload',
+                contentType: coverFile.type,
+            })
+            coverUrl = uploadedCoverBlob.url
+        } else {
+            const response = await fetch(parsedPDF.cover)
+            const blob = await response.blob()
+
+            const uploadedCoverBlob = await upload(`${fileTitle}_cover.png`, blob, {
+                access: 'public',
+                handleUploadUrl: '/api/upload',
+                contentType: 'image/png'
+            })
+            coverUrl = uploadedCoverBlob.url
+        }
+
+
+        const book = await createBook({
+            clerkId: userId,
+            title: data.title,
+            author: data.author,
+            persona: data.persona,
+            fileURL: uploadedPdfBlob.url,
+            fileBlobKey: uploadedPdfBlob.pathname,
+            coverURL: coverUrl,
+            fileSize: pdfFile.size
+        })
     } catch (error) {
       console.error(error)
 
@@ -88,7 +127,7 @@ const UploadForm = () => {
 
   const handleFileChange = (
     e: React.ChangeEvent<HTMLInputElement>,
-    field: "bookPdf" | "coverImage"
+    field: "pdfFile" | "coverImage"
   ) => {
     const file = e.target.files?.[0]
     if (file) {
@@ -97,8 +136,8 @@ const UploadForm = () => {
     }
   }
 
-  const removeFile = (field: "bookPdf" | "coverImage") => {
-    form.setValue(field, field === "bookPdf" ? (null as any) : null)
+  const removeFile = (field: "pdfFile" | "coverImage") => {
+    form.setValue(field, undefined)
   }
 
   return (
@@ -109,7 +148,7 @@ const UploadForm = () => {
           {/* PDF file upload */}
           <FormField
             control={form.control}
-            name="bookPdf"
+            name="pdfFile"
             render={({ field }) => (
               <FormItem>
                 <FormLabel className="form-label">Book PDF File</FormLabel>
@@ -123,7 +162,7 @@ const UploadForm = () => {
                             type="button"
                             variant="ghost"
                             size="icon"
-                            onClick={() => removeFile("bookPdf")}
+                            onClick={() => removeFile("pdfFile")}
                             className="upload-dropzone-remove"
                           >
                             <X className="h-4 w-4" />
@@ -135,7 +174,7 @@ const UploadForm = () => {
                         <input
                           type="file"
                           accept=".pdf"
-                          onChange={(e) => handleFileChange(e, "bookPdf")}
+                          onChange={(e) => handleFileChange(e, "pdfFile")}
                           className="absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0"
                         />
                         <div className="upload-dropzone">
@@ -239,7 +278,7 @@ const UploadForm = () => {
           {/* Voice selector */}
           <FormField
             control={form.control}
-            name="voice"
+            name="persona"
             render={({ field }) => (
               <FormItem className="space-y-4">
                 <FormLabel className="form-label">Choose Assistant Voice</FormLabel>

@@ -9,7 +9,7 @@ import {SignInButton, SignUpButton, Show, UserButton, useUser} from "@clerk/next
 
 const navItems = [
     {label: "Library", href: "/"},
-    {label: "About New", href: "/books/new"},
+    {label: "Add New", href: "/books/new"},
 ]
 
 const Navbar = () => {
