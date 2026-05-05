@@ -17,7 +17,7 @@ import { voiceOptions, voiceCategories } from "@/lib/constants"
 import { coverImageSchema, pdfFileSchema } from "@/lib/validators"
 import {useAuth} from "@clerk/react"
 import { toast } from 'sonner'
-import {checkBookExists, createBook} from "@/lib/actions/book.actions";
+import {checkBookExists, createBook, saveBookSegments} from "@/lib/actions/book.actions";
 import {upload} from "@vercel/blob/client";
 
 const formSchema = z.object({
@@ -114,6 +114,25 @@ const UploadForm = () => {
             coverURL: coverUrl,
             fileSize: pdfFile.size
         })
+
+        if(!book.success) throw new Error("Failed to create book")
+
+        if(book.alreadyExists){
+            toast.info("Book with the same title already exists.")
+            form.reset()
+            router.push(`/books/${existsCheck.book.slug}`)
+            return
+        }
+
+        const segments = await saveBookSegments(book.data._id, userId, parsedPDF.content)
+
+        if (!segments.success) {
+            toast.error("Failed to save book segments.")
+            throw new Error("Failed to save book segments.")
+        }
+
+        form.reset()
+        router.push('/')
     } catch (error) {
       console.error(error)
 
