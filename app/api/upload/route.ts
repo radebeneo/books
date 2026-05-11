@@ -23,7 +23,16 @@ export async function POST(request: Request): Promise<NextResponse> {
                      tokenPayload: JSON.stringify(jsonResponse),
 
                  }
-            }});
+            },
+            onUploadCompleted: async({blob, tokenPayload}) => {
+                console.log('File uploaded to blob: ', blob.url)
+
+                const payload = tokenPayload ? JSON.parse(tokenPayload) : null
+                const userId = payload?.userId
+
+            }
+        });
+            return NextResponse.json(jsonResponse)
     } catch (e) {
         const message = e instanceof Error ? e.message : "An unknown error occurred"
         const status = message.includes('Unauthorized') ? 401:500
