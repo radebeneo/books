@@ -8,22 +8,21 @@ export async function POST(request: Request): Promise<NextResponse> {
 
     try {
         const jsonResponse = await handleUpload({
-            token: process.env.BOOKS_READ_WRITE_TOKEN,
+            token: process.env.BLOB_READ_WRITE_TOKEN,
             body,
             request,
             onBeforeGenerateToken: async() => {
-
-            const { userId } = await auth()
-            if(!userId) {
+                const { userId } = await auth()
+                if(!userId) {
                     throw new Error('Unauthorized: User not authenticated')
-            }
-            return {
-                    allowedContentTypes: ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'],
-                     addRandomSuffix: true,
-                     maximumSizeInBytes: MAX_FILE_SIZE,
-                     tokenPayload: JSON.stringify(jsonResponse),
+                }
 
-                 }
+                return {
+                    allowedContentTypes: ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'],
+                    addRandomSuffix: true,
+                    maximumSizeInBytes: MAX_FILE_SIZE,
+                    tokenPayload: JSON.stringify({ userId }),
+                }
             },
             onUploadCompleted: async({blob, tokenPayload}) => {
                 console.log('File uploaded to blob: ', blob.url)
