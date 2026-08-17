@@ -4,9 +4,9 @@ import {auth} from "@clerk/nextjs/server";
 import {MAX_FILE_SIZE} from "@/lib/constants";
 
 export async function POST(request: Request): Promise<NextResponse> {
-    const body = (await request.json()) as HandleUploadBody
-
     try {
+        const body = (await request.json()) as HandleUploadBody
+
         const jsonResponse = await handleUpload({
             token: process.env.BLOB_READ_WRITE_TOKEN,
             body,
@@ -28,7 +28,9 @@ export async function POST(request: Request): Promise<NextResponse> {
             return NextResponse.json(jsonResponse)
     } catch (e) {
         const message = e instanceof Error ? e.message : "An unknown error occurred"
-        const status = message.includes('Unauthorized') ? 401:500
+        const status = e instanceof SyntaxError ? 400
+            : message.includes('Unauthorized') ? 401
+            : 500
         return NextResponse.json({error: message}, {status})
     }
 }
