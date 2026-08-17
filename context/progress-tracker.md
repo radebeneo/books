@@ -6,19 +6,18 @@ Update this file after every meaningful implementation change.
 
 ## Current Phase
 
-- **Phase 2 of 4 — Book Upload Pipeline** (complete)
+- **Phase 3 of 4 — Book Detail Page** (complete)
 - Phase 1 (Foundation) ✅ — Auth, layout, home page, navigation, design system
 - Phase 2 (Upload + Indexing) ✅ — Upload form, PDF parsing, Blob upload, MongoDB write, segment indexing
-- Phase 3 (Book Detail Page) 🔲 — Not started
+- Phase 3 (Book Detail Page) ✅ — Static detail page with header card, transcript area, back button
 - Phase 4 (Voice Session UI) 🔲 — Not started
 
 ---
 
 ## Current Goal
 
-- Build the individual book detail page at `/books/[slug]`
-- It must display: cover image, title, author, voice persona, and a "Start Voice Session" button
-- It must fetch the book document from MongoDB by slug and pass data to the voice session component
+- Wire up VAPI voice session on the book detail page (Phase 4)
+- Install `@vapi-ai/web`, create a client VoiceControls component, integrate mic start/stop and transcript streaming
 
 ---
 
@@ -35,7 +34,7 @@ Update this file after every meaningful implementation change.
 - **Book model** — `database/models/book.model.ts` with all fields, `unique: true` slug index, `timestamps: true`
 - **BookSegment model** — `database/models/book-segment.model.ts` with compound unique index on `{bookId, segmentIndex}`, `{bookId, pageNumber}`, and text index on `content`
 - **VoiceSession model** — `database/models/voice-session.model.ts` with compound index on `{clerkId, billingPeriodStart}`
-- **Book Server Actions** — `lib/actions/book.actions.ts`: `checkBookExists()`, `createBook()`, `saveBookSegments()` (with rollback on failure)
+- **Book Server Actions** — `lib/actions/book.actions.ts`: `checkBookExists()`, `createBook()`, `saveBookSegments()` (with rollback on failure), `getBookBySlug()` (fetch single book by slug)
 - **Zod file validators** — `lib/validators.ts`: `pdfFileSchema` (PDF, ≤ 50 MB), `coverImageSchema` (JPEG/PNG/WebP, ≤ 10 MB, optional)
 - **`lib/utils.ts` utilities** — `cn()`, `serializeData()`, `generateSlug()`, `splitIntoSegments()` (500-word window, 50-word overlap), `parsePDFFile()` (client-side only)
 - **`lib/constants.ts`** — brand colours, `sampleBooks`, file limits, `voiceOptions` (5 ElevenLabs voices), `voiceCategories`, `VOICE_SETTINGS`, `VAPI_DASHBOARD_CONFIG`, `CLERK_AUTH_APPEARANCE_OVERRIDE`
@@ -48,25 +47,21 @@ Update this file after every meaningful implementation change.
 
 ## In Progress
 
-- Nothing currently in progress. Ready to start Phase 3.
+- Nothing currently in progress. Ready to start Phase 4.
 
 ---
 
 ## Next Up
 
-1. **Book detail page** — Create `app/(root)/books/[slug]/page.tsx`
-   - Server Component: fetch `Book` document from MongoDB by slug using a new `getBookBySlug(slug)` Server Action
-   - Render: cover image (`next/image`), title, author, persona badge, file size
-   - Include a client-side "Start Voice Session" button (placeholder for Phase 4)
-   - Handle not-found case: return `notFound()` if slug doesn't match any document
-2. **`getBookBySlug` Server Action** — Add to `lib/actions/book.actions.ts`
-   - Calls `connectToDatabase()`, finds by `{ slug }`, returns `serializeData(book)` or `null`
-3. **Home page personal library** — Update `app/(root)/page.tsx`
-   - Fetch the signed-in user's books from MongoDB (new `getUserBooks(clerkId)` Server Action)
-   - Merge user books with `sampleBooks` or replace the static grid entirely
-   - Only show user books if signed in; show sample books to signed-out visitors
-4. **Voice session UI** — Phase 4 (after detail page is verified)
-   - VAPI client initialisation, microphone start/stop, session start/end writes to `VoiceSession`
+1. **Voice session UI** — Phase 4
+   - Install `@vapi-ai/web`
+   - Create client-side `VoiceControls` component: mic start/stop, VAPI session lifecycle
+   - Transcript streaming from VAPI message events → update UI in real-time
+   - Session writes to `VoiceSession` MongoDB model (startVoiceSession, endVoiceSession Server Actions)
+2. **Home page personal library** — Update `app/(root)/page.tsx`
+   - Add `getUserBooks(clerkId)` Server Action
+   - Show user's uploaded books when signed in; keep sample books for guests
+3. **Post-upload redirect** — Update `UploadForm.tsx` line ~135 `router.push('/')` → `router.push(\`/books/${book.data.slug}\`)`
 
 ---
 
