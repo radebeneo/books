@@ -1,10 +1,21 @@
 'use server'
 
-import {CreateBook, TextSegment} from '@/types'
-import {connectToDatabase} from "@/database/mongoose";
-import {generateSlug, serializeData} from "@/lib/utils";
+import { CreateBook, TextSegment } from '@/types'
+import { connectToDatabase } from "@/database/mongoose";
+import { generateSlug, serializeData } from "@/lib/utils";
 import Book from "@/database/models/book.model";
 import BookSegment from "@/database/models/book-segment.model";
+
+export const getAllBooks = async () => {
+    try {
+        await connectToDatabase();
+        const books = await Book.find().sort({ createdAt: -1 }).lean();
+        return { success: true, data: serializeData(books) };
+    } catch (e) {
+        console.error('Error connecting to database', e)
+        return { success: false, error: e };
+    }
+}
 
 export const checkBookExists = async (title: string) => {
     try {
@@ -12,9 +23,9 @@ export const checkBookExists = async (title: string) => {
 
         const slug = generateSlug(title);
 
-        const existingBook = await Book.findOne({slug}).lean();
+        const existingBook = await Book.findOne({ slug }).lean();
 
-        if(existingBook) {
+        if (existingBook) {
             return {
                 exists: true, book: serializeData(existingBook)
             }
@@ -33,12 +44,12 @@ export const checkBookExists = async (title: string) => {
 }
 
 export const createBook = async (data: CreateBook) => {
-    try{
+    try {
         await connectToDatabase()
         const slug = generateSlug(data.title)
-        const existingBook = await Book.findOne({slug}).lean();
+        const existingBook = await Book.findOne({ slug }).lean();
 
-        if(existingBook){
+        if (existingBook) {
             return {
                 success: true,
                 data: serializeData(existingBook),
@@ -46,7 +57,7 @@ export const createBook = async (data: CreateBook) => {
             }
         }
 
-        const book = await Book.create({...data, slug, totalSegments: 0})
+        const book = await Book.create({ ...data, slug, totalSegments: 0 })
 
         return {
             success: true,
@@ -54,7 +65,7 @@ export const createBook = async (data: CreateBook) => {
         }
     } catch (e) {
         console.error('Error creating book: ', e)
-        return{
+        return {
             success: false,
             error: e
         }
@@ -67,12 +78,12 @@ export const saveBookSegments = async (bookId: string, clerkId: string, segments
 
         console.log('Saving book segments ...');
 
-        const segmentsToInsert = segments.map(({text, segmentIndex, pageNumber, wordCount}) => ({
+        const segmentsToInsert = segments.map(({ text, segmentIndex, pageNumber, wordCount }) => ({
             clerkId, bookId, content: text, segmentIndex, pageNumber, wordCount
         }))
 
         await BookSegment.insertMany(segmentsToInsert)
-        await Book.findByIdAndUpdate(bookId, { totalSegments: segments.length})
+        await Book.findByIdAndUpdate(bookId, { totalSegments: segments.length })
         console.log('Book segments successfully saved.');
 
         return {
