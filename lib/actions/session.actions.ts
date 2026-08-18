@@ -1,13 +1,13 @@
 'use server'
 
-import { StartSessionResult } from "@/types";
+import { EndSessionResult, StartSessionResult } from "@/types";
 import { connectToDatabase } from "@/database/mongoose";
 import VoiceSession from "@/database/models/voice-session.model";
 import { getCurrentBillingPeriodStart } from "@/lib/subscription-constants";
 
 
 
-export const startVoiceSession = async (clerkId, bookId): Promise<StartSessionResult> => {
+export const startVoiceSession = async (clerkId: string, bookId: string): Promise<StartSessionResult> => {
 
     try {
         await connectToDatabase();
@@ -15,9 +15,19 @@ export const startVoiceSession = async (clerkId, bookId): Promise<StartSessionRe
         // Limits/Plan to see whether a session is allowed.
 
         const session = await VoiceSession.create({
-            clerkId, bookId, startedAt: new Date(),
-            billingPeriodStart: getCurrentBillingPeriodStart()
+            clerkId,
+            bookId,
+            startedAt: new Date(),
+            billingPeriodStart: getCurrentBillingPeriodStart(),
+            durationSeconds: 0,
+
         })
+
+        return {
+            success: true,
+            sessionId: session._id.toString(),
+            // maxDurationMinutes: check.maxDurationMinutes,
+        }
 
     } catch (e) {
         console.error('Error starting session', e)
@@ -25,6 +35,33 @@ export const startVoiceSession = async (clerkId, bookId): Promise<StartSessionRe
             success: false,
             error: 'Failed to start session',
         }
+    }
+
+}
+
+export const endVoiceSession = async (sessionId: string, durationSeconds: number): Promise<EndSessionResult> => {
+
+    try {
+        await connectToDatabase();
+
+        const session = await VoiceSession.findByIdAndUpdate(
+            sessionId,
+            {
+                endedAt: new Date(),
+                durationSeconds,
+            },
+            { new: true }
+        );
+
+        if (!session) {
+            return { success: false, error: 'Session not found' };
+        }
+
+        return { success: true };
+
+    } catch (e) {
+        console.error('Error ending session', e);
+        return { success: false, error: 'Failed to end session' };
     }
 
 }
