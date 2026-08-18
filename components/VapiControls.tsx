@@ -38,8 +38,15 @@ const VapiControls = ({ book }: { book: IBook }) => {
                             </div>
                         )}
                         <div className="vapi-mic-wrapper">
-                            <button id="mic-toggle-btn" className="vapi-mic-btn" aria-label="Toggle microphone" type="button">
-                                <MicOff className="w-6 h-6 text-[var(--text-primary)]" />
+                            {/* Pulsating ring — visible only when AI is speaking or thinking */}
+                            {(status === 'speaking' || status === 'thinking') && (
+                                <span className="vapi-pulse-ring" aria-hidden="true" />
+                            )}
+                            <button onClick={isActive ? stop : start} disabled={status === 'connecting'} id="mic-toggle-btn" className="vapi-mic-btn" aria-label="Toggle microphone" type="button">
+                                {isActive
+                                    ? <Mic className="w-6 h-6 text-[var(--text-primary)]" />
+                                    : <MicOff className="w-6 h-6 text-[var(--text-primary)]" />
+                                }
                             </button>
                         </div>
                     </div>
