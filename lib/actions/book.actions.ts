@@ -119,3 +119,28 @@ export const saveBookSegments = async (bookId: string, clerkId: string, segments
     }
 
 }
+
+export const searchBookSegments = async (bookId: string, query: string, limit: number = 3) => {
+    try {
+        await connectToDatabase();
+
+        const segments = await BookSegment.find(
+            {
+                bookId,
+                $text: { $search: query },
+            },
+            { score: { $meta: 'textScore' } }
+        )
+            .sort({ score: { $meta: 'textScore' } })
+            .limit(limit)
+            .lean();
+
+        return {
+            success: true,
+            data: serializeData(segments) as { content: string; segmentIndex: number; pageNumber?: number }[],
+        };
+    } catch (e) {
+        console.error('Error searching book segments: ', e);
+        return { success: false, error: e, data: [] };
+    }
+}
