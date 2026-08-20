@@ -2,7 +2,7 @@ import { IBook, Messages } from '@/types'
 import { useAuth } from '@clerk/nextjs';
 import { useEffect, useRef, useState } from 'react';
 import { DEFAULT_VOICE, VOICE_SETTINGS } from '@/lib/constants';
-import { startVoiceSession } from '@/lib/actions/session.actions';
+import { startVoiceSession, endVoiceSession } from '@/lib/actions/session.actions';
 import Vapi from '@vapi-ai/web';
 import { ASSISTANT_ID } from '@/lib/constants';
 import { getVoice } from '@/lib/utils';
@@ -67,9 +67,20 @@ export const useVapi = (book: IBook) => {
         const vapiInstance = getVapi();
 
         // ── Call status ──────────────────────────────────────────────────────
-        const onCallStart = () => setStatus('starting');
+        const onCallStart = () => {
+            setStatus('starting');
+            setDuration(0);
+            timerRef.current = setInterval(() => {
+                setDuration(prev => prev + 1);
+            }, 1000);
+        };
         const onCallEnd = () => {
+            if (timerRef.current) {
+                clearInterval(timerRef.current);
+                timerRef.current = null;
+            }
             setStatus('idle');
+            setDuration(0);
             setCurrentMessage('');
             setCurrentUserMessage('');
         };
@@ -168,9 +179,15 @@ export const useVapi = (book: IBook) => {
             })
 
         } catch (e) {
-            console.log('Error starting call', e)
-            setStatus('idle')
-            setLimitError('An error occurred. Please try again')
+            console.error('Error starting call', e);
+            // If the VAPI call failed but a session record was already created,
+            // close it immediately so it doesn't skew billing/session data.
+            if (sessionIdRef.current) {
+                await endVoiceSession(sessionIdRef.current, 0);
+                sessionIdRef.current = null;
+            }
+            setStatus('idle');
+            setLimitError('An error occurred. Please try again');
         }
     }
     const stop = async () => {

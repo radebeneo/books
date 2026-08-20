@@ -124,6 +124,7 @@ export const searchBookSegments = async (bookId: string, query: string, limit: n
     try {
         await connectToDatabase();
 
+        // Primary: MongoDB full-text search (fast, scored, uses index).
         const segments = await BookSegment.find(
             {
                 bookId,
@@ -135,9 +136,39 @@ export const searchBookSegments = async (bookId: string, query: string, limit: n
             .limit(limit)
             .lean();
 
+        if (segments.length > 0) {
+            return {
+                success: true,
+                data: serializeData(segments) as { content: string; segmentIndex: number; pageNumber?: number }[],
+            };
+        }
+
+        // Regex fallback: $text silently ignores tokens shorter than 3 chars
+        // (e.g. "AI", "ML"), so we attempt a case-insensitive regex scan.
+        // Guard: filter to tokens with ≥3 chars before building the pattern.
+        // If no usable tokens remain, return empty — an empty pattern would
+        // match every document and return completely unrelated segments.
+        const usableTokens = query
+            .split(/\s+/)
+            .map(t => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')) // escape regex special chars
+            .filter(t => t.length >= 3);
+
+        if (usableTokens.length === 0) {
+            return { success: true, data: [] };
+        }
+
+        const pattern = new RegExp(usableTokens.join('|'), 'i');
+
+        const fallbackSegments = await BookSegment.find({
+            bookId,
+            content: { $regex: pattern },
+        })
+            .limit(limit)
+            .lean();
+
         return {
             success: true,
-            data: serializeData(segments) as { content: string; segmentIndex: number; pageNumber?: number }[],
+            data: serializeData(fallbackSegments) as { content: string; segmentIndex: number; pageNumber?: number }[],
         };
     } catch (e) {
         console.error('Error searching book segments: ', e);

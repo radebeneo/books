@@ -42,7 +42,7 @@ const VapiControls = ({ book }: { book: IBook }) => {
                             {(status === 'speaking' || status === 'thinking') && (
                                 <span className="vapi-pulse-ring" aria-hidden="true" />
                             )}
-                            <button onClick={isActive ? stop : start} disabled={status === 'connecting'} id="mic-toggle-btn" className="vapi-mic-btn" aria-label="Toggle microphone" type="button">
+                            <button onClick={isActive ? stop : start} disabled={status === 'connecting'} id="mic-toggle-btn" className="vapi-mic-btn" aria-label={isActive ? 'Stop voice session' : 'Start voice session'} aria-pressed={isActive} type="button">
                                 {isActive
                                     ? <Mic className="w-6 h-6 text-[var(--text-primary)]" />
                                     : <MicOff className="w-6 h-6 text-[var(--text-primary)]" />
@@ -66,7 +66,9 @@ const VapiControls = ({ book }: { book: IBook }) => {
                                 <span className="vapi-status-text">Voice: {voiceName}</span>
                             </div>
                             <div id="timer-pill" className="vapi-status-indicator">
-                                <span className="vapi-status-text">0:00 / 15:00</span>
+                                <span className="vapi-status-text">
+                                    {`${Math.floor(duration / 60)}:${String(duration % 60).padStart(2, '0')} / 15:00`}
+                                </span>
                             </div>
                         </div>
                     </div>
